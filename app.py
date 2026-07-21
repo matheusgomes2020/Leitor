@@ -9,25 +9,19 @@ st.set_page_config(page_title="Scanner AçoNobre", page_icon="📱", layout="cen
 st.title("📱 Leitor de Produção - AçoNobre")
 st.write("Tire uma foto da etiqueta para identificar a peça.")
 
-# Botão para ativar a câmara nativa
 foto = st.file_uploader("📸 Clique para Tirar Foto", type=["png", "jpg", "jpeg"])
 
 if foto is not None:
     with st.spinner("A analisar a etiqueta..."):
         try:
-            # Abre a imagem
             img = Image.open(foto)
             texto_lido = pytesseract.image_to_string(img)
             
-            # 1. CAÇA AO CÓDIGO FILHO (SUPER BLINDADO)
+            # 1. CAÇA AO CÓDIGO FILHO (Ex: 902.000769)
             match_filho = re.search(r'(\d{3})[.,\s]*(\d{6})', texto_lido)
-            if match_filho:
-                # Força a formatação perfeita: XXX.XXXXXX
-                codigo_filho = f"{match_filho.group(1)}.{match_filho.group(2)}"
-            else:
-                codigo_filho = None
+            codigo_filho = f"{match_filho.group(1)}.{match_filho.group(2)}" if match_filho else None
             
-            # 2. CAÇA AO CÓDIGO PAI (Os 7 dígitos que vêm a seguir ao hífen)
+            # 2. CAÇA AO CÓDIGO PAI (Ex: 8090768 - O SigmaNest corta os dois zeros)
             match_pai = re.search(r'-\s*(\d{7})\b', texto_lido)
             codigo_pai_bruto = match_pai.group(1) if match_pai else None
             
@@ -35,11 +29,14 @@ if foto is not None:
             match_pd = re.search(r'PD[\s:-]*(\d+)', texto_lido, re.IGNORECASE)
             pedido = match_pd.group(1) if match_pd else None
             
-            # 4. LÓGICA DE EXIBIÇÃO (Mostra tudo o que conseguir extrair)
+            # 4. CAÇA AO CLIENTE (Lê o que está logo abaixo ou à frente de "Cliente:")
+            match_cliente = re.search(r'Cliente:[\s\n]*([A-Za-zÀ-ÖØ-öø-ÿ0-9\s]+?)(?=\n|Dimensões|Qtde)', texto_lido, re.IGNORECASE)
+            cliente = match_cliente.group(1).strip() if match_cliente else None
+
+            # LÓGICA DE EXIBIÇÃO
             if codigo_filho or pedido:
                 st.success("✅ Leitura Concluída!")
                 
-                # Se achou o Código Filho, dá o destaque máximo e busca no Excel
                 if codigo_filho:
                     st.markdown(f"""
                     <div style="background-color: #1e3d59; padding: 15px; border-radius: 8px; text-align: center; margin-bottom: 15px;">
@@ -48,9 +45,7 @@ if foto is not None:
                     </div>
                     """, unsafe_allow_html=True)
                     
-                    # ==========================================
-                    # BUSCA NA BASE DE DADOS (PANDAS)
-                    # ==========================================
+                    # BUSCA NO EXCEL DO PCP
                     st.write("🔍 **Buscando no sistema...**")
                     try:
                         df_pcp = pd.read_excel("Lista_PCP_Global.xlsx", dtype=str)
@@ -65,15 +60,19 @@ if foto is not None:
                             st.info(f"📏 **Medidas:** {medida} | **Esp:** {espessura}mm")
                         else:
                             st.warning("⚠️ Código encontrado, mas não localizado no Excel do PCP.")
-                    except Exception as e:
-                        st.error("⚠️ Planilha 'Lista_PCP_Global.xlsx' não encontrada no sistema. (Faça upload do Excel para o GitHub para ativar esta função).")
-                    # ==========================================
-                    
+                    except Exception:
+                        st.error("⚠️ Planilha 'Lista_PCP_Global.xlsx' não encontrada no sistema.")
+                        
                 else:
-                    st.warning("⚠️ O Código da Peça não foi lido pelo leitor ótico. Tente aproximar mais a câmara.")
+                    st.warning("⚠️ O Código da Peça não foi lido pelo leitor ótico.")
                 
                 st.markdown("---")
                 
+                # Exibe o Cliente se achou
+                if cliente:
+                    st.write(f"🏢 **Cliente:** {cliente}")
+                
+                # Devolve os dois zeros (.00) ao Código Pai
                 if codigo_pai_bruto:
                     pai_formatado = f"{codigo_pai_bruto[:3]}.00{codigo_pai_bruto[3:]}"
                     st.write(f"🏗️ **Código Pai:** {pai_formatado}")
@@ -84,7 +83,6 @@ if foto is not None:
             else:
                 st.error("❌ O leitor não identificou nem o Código nem o Pedido.")
                 
-            # Aba de depuração
             with st.expander("Ver texto bruto (Modo Técnico)"):
                 st.write(texto_lido)
                     
