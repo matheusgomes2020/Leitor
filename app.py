@@ -8,9 +8,9 @@ from PIL import Image
 st.set_page_config(page_title="Scanner AçoNobre", page_icon="📱", layout="centered")
 
 st.title("📱 Leitor de Produção - AçoNobre")
-st.write("Tire uma foto da etiqueta para leitura.")
+st.write("Tire uma foto da etiqueta para extrair o Código da Peça.")
 
-# Usando file_uploader para permitir usar a câmara nativa do telemóvel (com zoom e foco)
+# Botão para tirar foto com a câmara nativa
 foto = st.file_uploader("📸 Clique para Tirar Foto", type=["png", "jpg", "jpeg"])
 
 if foto is not None:
@@ -22,36 +22,45 @@ if foto is not None:
             # Lê o texto da imagem usando o Tesseract
             texto_lido = pytesseract.image_to_string(img)
             
-            # 1. CAÇA AO PEDIDO (Aceita PD:, PD-, PD_ ou só PD seguido de números)
-            match_pd = re.search(r'PD[\s:-]*(\d+)', texto_lido, re.IGNORECASE)
-            pedido = match_pd.group(1) if match_pd else None
-            
-            # 2. CAÇA AO CÓDIGO (Modo Trator: procura apenas 7 números seguidos, ignora o traço)
+            # 1. CAÇA AO CÓDIGO FILHO (A nossa prioridade máxima)
+            # Procura apenas 7 números seguidos em qualquer lugar do texto
             match_codigo = re.search(r'(\d{7})', texto_lido)
             codigo_sigma = match_codigo.group(1) if match_codigo else None
             
-            # 3. LÓGICA DE EXIBIÇÃO FLEXÍVEL (Mostra o que achar)
-            if pedido or codigo_sigma:
-                st.success("✅ Leitura Finalizada!")
+            # 2. CAÇA AO PEDIDO (Secundário)
+            match_pd = re.search(r'PD[\s:-]*(\d+)', texto_lido, re.IGNORECASE)
+            pedido = match_pd.group(1) if match_pd else None
+            
+            # 3. EXIBIÇÃO FOCADA NO CÓDIGO
+            if codigo_sigma:
+                # O Pulo do Gato: formata o código para o padrão Delta/PCP
+                codigo_formatado = f"{codigo_sigma[:3]}.00{codigo_sigma[3:]}"
                 
+                st.success("✅ Código encontrado!")
+                
+                # Destaque máximo para o Código Filho
+                st.markdown(f"""
+                <div style="background-color: #1e3d59; padding: 20px; border-radius: 10px; text-align: center;">
+                    <h3 style="color: white; margin: 0;">CÓDIGO DA PEÇA</h3>
+                    <h1 style="color: #ffc13b; margin: 0; font-size: 40px;">{codigo_formatado}</h1>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                st.write("") # Espaçamento
+                
+                # Mostra o pedido apenas se o encontrar
                 if pedido:
-                    st.info(f"📦 **PEDIDO:** {pedido}")
+                    st.info(f"📦 **Pedido associado:** {pedido}")
                 else:
-                    st.warning("⚠️ **PEDIDO:** Não encontrado na imagem.")
-                    
-                if codigo_sigma:
-                    codigo_formatado = f"{codigo_sigma[:3]}.00{codigo_sigma[3:]}"
-                    st.info(f"⚙️ **CÓDIGO (Delta/PCP):** {codigo_formatado}")
-                else:
-                    st.warning("⚠️ **CÓDIGO:** Não encontrado na imagem.")
+                    st.warning("⚠️ **Nota:** Número do Pedido (PD) não visível na foto.")
                 
                 st.markdown("---")
-                st.write("*(Pronto para conectar com o Excel do PCP!)*")
+                st.write("*(Pronto para buscar os dados desta peça no Excel do PCP...)*")
                 
             else:
-                st.error("❌ A câmara não conseguiu ler nem o Pedido nem o Código.")
+                st.error("❌ Não foi possível encontrar um código de 7 dígitos. Tente focar melhor a etiqueta.")
                 
-            # Sempre mostra o texto bruto para depuração (escondido numa aba)
+            # Aba de depuração para ver o que a câmara leu realmente
             with st.expander("Ver texto bruto lido pela câmara"):
                 st.write(texto_lido)
                     
