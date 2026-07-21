@@ -10,6 +10,7 @@ st.set_page_config(page_title="Scanner AçoNobre", page_icon="📱", layout="cen
 st.title("📱 Leitor de Produção - AçoNobre")
 st.write("Tire uma foto da etiqueta para leitura.")
 
+# Usando file_uploader para permitir usar a câmara nativa do telemóvel (com zoom e foco)
 foto = st.file_uploader("📸 Clique para Tirar Foto", type=["png", "jpg", "jpeg"])
 
 if foto is not None:
@@ -29,23 +30,30 @@ if foto is not None:
             match_codigo = re.search(r'(\d{7})', texto_lido)
             codigo_sigma = match_codigo.group(1) if match_codigo else None
             
-            if pedido and codigo_sigma:
-                # Corrige a formatação
-                codigo_formatado = f"{codigo_sigma[:3]}.00{codigo_sigma[3:]}"
+            # 3. LÓGICA DE EXIBIÇÃO FLEXÍVEL (Mostra o que achar)
+            if pedido or codigo_sigma:
+                st.success("✅ Leitura Finalizada!")
                 
-                st.success("✅ Etiqueta Lida com Sucesso!")
-                
-                # Exibe os dados
-                st.info(f"📦 **PEDIDO:** {pedido}")
-                st.info(f"⚙️ **CÓDIGO (Delta/PCP):** {codigo_formatado}")
+                if pedido:
+                    st.info(f"📦 **PEDIDO:** {pedido}")
+                else:
+                    st.warning("⚠️ **PEDIDO:** Não encontrado na imagem.")
+                    
+                if codigo_sigma:
+                    codigo_formatado = f"{codigo_sigma[:3]}.00{codigo_sigma[3:]}"
+                    st.info(f"⚙️ **CÓDIGO (Delta/PCP):** {codigo_formatado}")
+                else:
+                    st.warning("⚠️ **CÓDIGO:** Não encontrado na imagem.")
                 
                 st.markdown("---")
                 st.write("*(Pronto para conectar com o Excel do PCP!)*")
                 
             else:
-                st.error("❌ Faltam dados. A câmara não conseguiu ler o Pedido ou os 7 dígitos do Código.")
-                with st.expander("Ver texto bruto lido pela câmara"):
-                    st.write(texto_lido)
+                st.error("❌ A câmara não conseguiu ler nem o Pedido nem o Código.")
+                
+            # Sempre mostra o texto bruto para depuração (escondido numa aba)
+            with st.expander("Ver texto bruto lido pela câmara"):
+                st.write(texto_lido)
                     
         except Exception as e:
             st.error(f"Erro ao processar a imagem: {e}")
