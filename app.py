@@ -8,10 +8,10 @@ from PIL import Image
 st.set_page_config(page_title="Scanner AçoNobre", page_icon="📱", layout="centered")
 
 st.title("📱 Leitor de Produção - AçoNobre")
-st.write("Aponte a câmara para a etiqueta do SigmaNest.")
+st.write("Tire uma foto da etiqueta para leitura.")
 
-# Ativa a câmara do telemóvel
-foto = st.camera_input("Tirar foto da etiqueta")
+# A MUDANÇA ESTÁ AQUI: Trocamos o camera_input pelo file_uploader
+foto = st.file_uploader("📸 Clique para Tirar Foto", type=["png", "jpg", "jpeg"])
 
 if foto is not None:
     with st.spinner("A analisar a etiqueta..."):
@@ -44,8 +44,8 @@ if foto is not None:
                 st.write("*(Aqui entrará a ligação com a base de dados do PCP para mostrar o **Item Pai** e a **Descrição**)*")
                 
             else:
-                st.error("❌ Não foi possível extrair os dados. Tente focar melhor a câmara ou melhorar a iluminação.")
-                with st.expander("Ver texto bruto lido pela câmara"):
+                st.error("❌ Não foi possível extrair os dados. Tente focar melhor a câmera.")
+                with st.expander("Ver texto bruto lido pela câmera"):
                     st.write(texto_lido)
                     
         except Exception as e:
